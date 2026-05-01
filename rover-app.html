@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="SDMS Rover"/>
+<meta name="theme-color" content="#020c05"/>
+<title>SDMS Rover Command</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --green: #00ff88;
+  --green-dim: #00cc6a;
+  --green-dark: #003318;
+  --green-faint: #001a0c;
+  --red: #ff3333;
+  --amber: #ffb300;
+  --blue: #00aaff;
+  --bg: #020c05;
+  --bg2: #050f07;
+  --panel: #08150a;
+  --border: #0d2a14;
+  --border2: #1a4a25;
+  --text: #b0e8c0;
+  --text-dim: #3a6a45;
+  --mono: 'Share Tech Mono', monospace;
+  --sans: 'Barlow Condensed', sans-serif;
+  --nav-h: 68px;
+  --header-h: 60px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%; overflow: hidden;
+  background: var(--bg); color: var(--text);
+  font-family: var(--sans); -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+/* ─── SCANLINES ─── */
+body::before {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
+}
+
+/* ─── HEADER ─── */
+.app-header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  height: var(--header-h);
+  background: linear-gradient(180deg, #040f06 0%, var(--bg2) 100%);
+  border-bottom: 1px solid var(--border2);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.header-logo { display: flex; align-items: center; gap: 10px; }
+.header-logo svg { width: 28px; height: 28px; }
+.header-title { line-height: 1; }
+.header-title .t1 { font-family: var(--mono); font-size: 11px; color: var(--green); letter-spacing: 2px; }
+.header-title .t2 { font-family: var(--mono); font-size: 8px; color: var(--text-dim); letter-spacing: 1px; margin-top: 2px; }
+.header-status { display: flex; align-items: center; gap: 8px; }
+.h-clock { font-family: var(--mono); font-size: 13px; color: var(--green); }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: #333; }
+.status-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse-dot 2s infinite; }
+@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* ─── CONTENT AREA ─── */
+.content {
+  position: fixed; top: var(--header-h); left: 0; right: 0;
+  bottom: calc(var(--nav-h) + var(--safe-bottom));
+  overflow-y: auto; overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 12px 8px;
+  scrollbar-width: none;
+}
+.content::-webkit-scrollbar { display: none; }
+
+/* ─── TABS ─── */
+.tab-view { display: none; }
+.tab-view.active { display: block; animation: fadeIn 0.2s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+
+/* ─── BOTTOM NAV ─── */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+  height: calc(var(--nav-h) + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  background: linear-gradient(0deg, #030f05 0%, var(--bg2) 100%);
+  border-top: 1px solid var(--border2);
+  display: flex; align-items: stretch;
+}
+.nav-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 4px; cursor: pointer;
+  border: none; background: none; color: var(--text-dim);
+  font-family: var(--sans); font-size: 9px; letter-spacing: 1px;
+  font-weight: 600; text-transform: uppercase;
+  transition: color 0.2s, background 0.2s;
+  position: relative; padding: 8px 4px;
+}
+.nav-item svg { width: 22px; height: 22px; stroke-width: 1.5; }
+.nav-item.active { color: var(--green); }
+.nav-item.active svg { filter: drop-shadow(0 0 4px var(--green)); }
+.nav-item::before {
+  content: ''; position: absolute; top: 0; left: 20%; right: 20%; height: 2px;
+  background: var(--green); border-radius: 0 0 2px 2px;
+  transform: scaleX(0); transition: transform 0.2s;
+}
+.nav-item.active::before { transform: scaleX(1); }
+.nav-badge {
+  position: absolute; top: 6px; right: calc(50% - 20px);
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--red); color: #fff; font-size: 9px; font-family: var(--mono);
+  display: none; align-items: center; justify-content: center;
+}
+.nav-badge.visible { display: flex; }
+
+/* ─── CARDS ─── */
+.card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; margin-bottom: 10px; overflow: hidden;
+}
+.card-header {
+  padding: 10px 14px; display: flex; align-items: center; gap: 8px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(90deg, rgba(0,255,136,0.04) 0%, transparent 100%);
+}
+.card-tag {
+  font-family: var(--mono); font-size: 9px; color: var(--text-dim);
+  background: var(--green-dark); padding: 2px 6px; border-radius: 3px;
+}
+.card-title {
+  font-family: var(--mono); font-size: 11px; color: var(--green);
+  letter-spacing: 1.5px; flex: 1;
+}
+.card-body { padding: 14px; }
+
+/* ─── CONNECT TAB ─── */
+.connection-status-banner {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px; background: var(--green-faint); border: 1px solid var(--border2);
+  border-radius: 8px; margin-bottom: 12px;
+}
+.csb-dot { width: 14px; height: 14px; border-radius: 50%; background: #1a3a22; flex-shrink: 0; }
+.csb-dot.online { background: var(--green); box-shadow: 0 0 10px var(--green); animation: pulse-dot 1.5s infinite; }
+.csb-info { flex: 1; }
+.csb-label { font-family: var(--mono); font-size: 13px; color: var(--green); }
+.csb-sub { font-family: var(--mono); font-size: 9px; color: var(--text-dim); margin-top: 3px; }
+
+.btn-primary {
+  width: 100%; padding: 16px; border-radius: 8px; border: none; cursor: pointer;
+  font-family: var(--mono); font-size: 13px; letter-spacing: 2px;
+  background: linear-gradient(135deg, #003a1a 0%, #005a28 100%);
+  color: var(--green); border: 1px solid var(--green-dim);
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  transition: all 0.2s; position: relative; overflow: hidden; margin-bottom: 10px;
+}
+.btn-primary:active { transform: scale(0.98); opacity: 0.85; }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary.danger { background: linear-gradient(135deg, #3a0000 0%, #5a0000 100%); color: var(--red); border-color: var(--red); }
+.btn-secondary {
+  width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border2); cursor: pointer;
+  font-family: var(--mono); font-size: 11px; letter-spacing: 2px;
+  background: transparent; color: var(--text-dim);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: all 0.2s; margin-bottom: 8px;
+}
+.btn-secondary:active { opacity: 0.6; }
+.btn-secondary.sim-active { color: var(--amber); border-color: var(--amber); background: rgba(255,179,0,0.05); }
+
+.bt-log {
+  background: #020a04; border: 1px solid var(--border);
+  border-radius: 6px; padding: 10px; height: 140px; overflow-y: auto;
+  font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+  scrollbar-width: none;
+}
+.bt-log::-webkit-scrollbar { display: none; }
+.bt-log-entry { margin-bottom: 4px; line-height: 1.4; }
+.bt-log-entry.success { color: var(--green-dim); }
+.bt-log-entry.error { color: var(--red); }
+
+/* ─── HEALTH BARS ─── */
+.health-row { margin-bottom: 12px; }
+.health-label-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+.health-label { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: 1px; }
+.health-val { font-family: var(--mono); font-size: 10px; color: var(--green); }
+.health-bar-bg { height: 4px; background: var(--green-dark); border-radius: 2px; overflow: hidden; }
+.health-bar-fill { height: 100%; background: var(--green); border-radius: 2px; transition: width 1s ease; }
+.health-bar-fill.warn { background: var(--amber); }
+.health-bar-fill.crit { background: var(--red); }
+
+/* ─── RADAR TAB ─── */
+.radar-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  background: #020a04; border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px; margin-bottom: 10px;
+}
+#radarCanvas { border-radius: 50%; max-width: 100%; }
+.radar-stats { display: flex; justify-content: space-around; width: 100%; margin-top: 12px; }
+.rs-item { text-align: center; }
+.rs-val { font-family: var(--mono); font-size: 20px; color: var(--green); }
+.rs-label { font-family: var(--mono); font-size: 8px; color: var(--text-dim); letter-spacing: 1px; margin-top: 2px; }
+.radar-legend { display: flex; gap: 14px; margin-top: 8px; }
+.rl-item { display: flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 9px; color: var(--text-dim); }
+.rl-dot { width: 8px; height: 8px; border-radius: 50%; }
+.rl-dot.obj { background: var(--amber); }
+.rl-dot.metal { background: var(--red); }
+.rl-dot.clear { background: var(--green); }
+
+/* ─── SENSORS TAB ─── */
+.scard {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+  padding: 14px; margin-bottom: 10px; display: flex; align-items: center; gap: 14px;
+  transition: border-color 0.3s;
+  position: relative; overflow: hidden;
+}
+.scard::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--green); border-radius: 0 2px 2px 0;
+  box-shadow: 2px 0 8px rgba(0,255,136,0.3);
+}
+.scard.temp::before { background: #ff8844; box-shadow: 2px 0 8px rgba(255,136,68,0.3); }
+.scard.hum::before { background: var(--blue); box-shadow: 2px 0 8px rgba(0,170,255,0.3); }
+.scard.metal::before { background: var(--red); box-shadow: 2px 0 8px rgba(255,51,51,0.3); }
+.scard.alert-active { border-color: var(--red); background: rgba(255,51,51,0.05); }
+.scard-icon { width: 36px; height: 36px; flex-shrink: 0; opacity: 0.6; }
+.scard-icon svg { width: 100%; height: 100%; stroke: var(--green); }
+.scard.temp .scard-icon svg { stroke: #ff8844; }
+.scard.hum .scard-icon svg { stroke: var(--blue); }
+.scard.metal .scard-icon svg { stroke: var(--red); }
+.scard-data { flex: 1; }
+.scard-val { font-family: var(--mono); font-size: 28px; color: var(--green); line-height: 1; }
+.scard.temp .scard-val { color: #ff8844; }
+.scard.hum .scard-val { color: var(--blue); }
+.scard.metal .scard-val { font-size: 16px; }
+.scard-unit { font-size: 14px; opacity: 0.6; }
+.scard-label { font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: 1px; margin-top: 3px; }
+.scard-status { font-family: var(--mono); font-size: 10px; color: var(--text-dim); margin-top: 4px; }
+.scard-status.ok { color: var(--green-dim); }
+.scard-status.warn { color: var(--amber); }
+.scard-status.danger { color: var(--red); }
+.sparkline-wrap { width: 72px; flex-shrink: 0; }
+.sparkline-wrap canvas { display: block; }
+
+/* Metal pulse animation */
+.metal-detected { animation: metal-pulse 0.5s ease-in-out infinite alternate; }
+@keyframes metal-pulse { from{opacity:0.7} to{opacity:1; text-shadow: 0 0 12px var(--red); } }
+
+/* ─── LCD PREVIEW ─── */
+.lcd-outer {
+  display: flex; justify-content: center; padding: 8px;
+}
+.lcd-bezel {
+  background: #1a2a1e; border: 2px solid #2a3a2e; border-radius: 10px;
+  padding: 12px 16px; box-shadow: inset 0 2px 8px rgba(0,0,0,0.5), 0 0 20px rgba(0,30,0,0.3);
+  width: 100%; max-width: 320px;
+}
+.lcd-screen {
+  background: #0a1a0c; border: 1px solid #0d2010; border-radius: 4px;
+  padding: 10px 12px; font-family: var(--mono);
+  box-shadow: inset 0 0 8px rgba(0,255,136,0.04);
+}
+.lcd-line {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 6px; font-size: 14px;
+}
+.lcd-line:last-child { margin-bottom: 0; }
+.lcd-key { color: #2a6a35; }
+.lcd-val { color: var(--green); text-shadow: 0 0 4px rgba(0,255,136,0.4); }
+.lcd-val.metal-yes { color: var(--red); text-shadow: 0 0 6px rgba(255,51,51,0.6); animation: metal-pulse 0.5s infinite; }
+.lcd-val.metal-no { color: var(--green-dim); }
+
+/* ─── ALERTS TAB ─── */
+.alert-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px; background: rgba(255,51,51,0.08);
+  border: 1px solid rgba(255,51,51,0.25); border-radius: 8px; margin-bottom: 8px;
+}
+.alert-item.warn { background: rgba(255,179,0,0.06); border-color: rgba(255,179,0,0.2); }
+.alert-icon { font-size: 18px; flex-shrink: 0; }
+.alert-body { flex: 1; }
+.alert-msg { font-family: var(--mono); font-size: 11px; color: #ff8888; }
+.alert-item.warn .alert-msg { color: #ffcc44; }
+.alert-time { font-family: var(--mono); font-size: 9px; color: var(--text-dim); margin-top: 4px; }
+.alert-empty { text-align: center; padding: 40px 20px; color: var(--text-dim); }
+.alert-empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+.alert-empty-text { font-family: var(--mono); font-size: 11px; letter-spacing: 1px; }
+.alert-actions { display: flex; gap: 8px; margin-top: 10px; }
+.btn-sm {
+  flex: 1; padding: 10px 8px; border-radius: 6px; border: 1px solid var(--border2);
+  background: transparent; color: var(--text-dim); font-family: var(--mono); font-size: 10px;
+  letter-spacing: 1px; cursor: pointer; transition: all 0.2s;
+}
+.btn-sm:active { opacity: 0.6; }
+.btn-sm.danger { color: var(--red); border-color: rgba(255,51,51,0.3); }
+.sound-toggle { display: flex; align-items: center; gap: 8px; padding: 8px 0; }
+.sound-label { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: 1px; }
+.toggle { position: relative; display: inline-block; width: 44px; height: 24px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute; cursor: pointer; inset: 0; background: #1a2a1e;
+  border-radius: 12px; border: 1px solid var(--border2); transition: 0.2s;
+}
+.toggle-slider::before {
+  content: ''; position: absolute; width: 18px; height: 18px; left: 2px; bottom: 2px;
+  background: var(--text-dim); border-radius: 50%; transition: 0.2s;
+}
+input:checked + .toggle-slider { background: var(--green-dark); border-color: var(--green-dim); }
+input:checked + .toggle-slider::before { transform: translateX(20px); background: var(--green); }
+
+/* ─── LOG TAB ─── */
+.log-entry {
+  display: grid; grid-template-columns: 60px 44px 1fr;
+  gap: 6px; padding: 6px 0; border-bottom: 1px solid var(--border);
+  align-items: start;
+}
+.log-entry:last-child { border-bottom: none; }
+.log-time { font-family: var(--mono); font-size: 9px; color: var(--text-dim); padding-top: 1px; }
+.log-tag {
+  font-family: var(--mono); font-size: 8px; padding: 2px 4px; border-radius: 3px;
+  text-align: center; background: var(--green-dark); color: var(--green-dim);
+}
+.log-tag.metal { background: #3a0000; color: #ff6666; }
+.log-tag.bt { background: #00001a; color: #6699ff; }
+.log-tag.temp { background: #2a1a00; color: #ff9955; }
+.log-msg { font-family: var(--mono); font-size: 10px; color: var(--text); line-height: 1.4; }
+
+/* ─── TOAST ─── */
+.toast-wrap { position: fixed; top: calc(var(--header-h) + 8px); left: 12px; right: 12px; z-index: 200; pointer-events: none; }
+.toast {
+  padding: 12px 16px; border-radius: 8px; margin-bottom: 6px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.5px;
+  animation: toastIn 0.3s ease; pointer-events: none;
+  display: flex; align-items: center; gap: 8px;
+}
+@keyframes toastIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+@keyframes toastOut { to{opacity:0;transform:translateY(-8px)} }
+.toast.success { background: #002a14; border: 1px solid #005a28; color: var(--green); }
+.toast.danger { background: #2a0000; border: 1px solid #5a0000; color: var(--red); }
+.toast.warn { background: #1a1200; border: 1px solid #3a2a00; color: var(--amber); }
+
+/* ─── SECTION TITLE ─── */
+.section-title {
+  font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+  letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px;
+  padding-bottom: 6px; border-bottom: 1px solid var(--border);
+}
+
+/* ─── METAL ALERT OVERLAY ─── */
+.metal-overlay {
+  position: fixed; inset: 0; z-index: 500; pointer-events: none;
+  border: 4px solid transparent; transition: border-color 0.2s;
+}
+.metal-overlay.active { border-color: var(--red); animation: flash-border 0.5s infinite; }
+@keyframes flash-border { 0%,100%{border-color:var(--red); box-shadow: inset 0 0 30px rgba(255,51,51,0.3)} 50%{border-color:transparent; box-shadow: none} }
+</style>
+</head>
+<body>
+
+<!-- METAL ALERT OVERLAY -->
+<div class="metal-overlay" id="metalOverlay"></div>
+
+<!-- HEADER -->
+<header class="app-header">
+  <div class="header-logo">
+    <svg viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="17" stroke="#00ff88" stroke-width="1.5" stroke-dasharray="4 2"/>
+      <circle cx="20" cy="20" r="9" stroke="#00ff88" stroke-width="1" opacity="0.6"/>
+      <circle cx="20" cy="20" r="3" fill="#00ff88"/>
+      <line x1="20" y1="3" x2="20" y2="10" stroke="#00ff88" stroke-width="1.5"/>
+      <line x1="37" y1="20" x2="30" y2="20" stroke="#00ff88" stroke-width="1.5"/>
+      <line x1="20" y1="37" x2="20" y2="30" stroke="#00ff88" stroke-width="1.5"/>
+      <line x1="3" y1="20" x2="10" y2="20" stroke="#00ff88" stroke-width="1.5"/>
+    </svg>
+    <div class="header-title">
+      <div class="t1">ROVER CMD</div>
+      <div class="t2" id="hdrStatus">OFFLINE · v2.4.1</div>
+    </div>
+  </div>
+  <div class="header-status">
+    <div class="h-clock" id="hClock">--:--:--</div>
+    <div class="status-dot" id="hdrDot"></div>
+  </div>
+</header>
+
+<!-- CONTENT -->
+<div class="content" id="contentArea">
+
+  <!-- ── TAB: CONNECT ── -->
+  <div class="tab-view active" id="tabConnect">
+
+    <div class="connection-status-banner">
+      <div class="csb-dot" id="csbDot"></div>
+      <div class="csb-info">
+        <div class="csb-label" id="csbLabel">ROVER OFFLINE</div>
+        <div class="csb-sub" id="csbSub">No device connected</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-tag">BT</span>
+        <span class="card-title">BLUETOOTH — HC-05 / HC-06</span>
+      </div>
+      <div class="card-body">
+        <button class="btn-primary" id="btnConnect" onclick="connectBluetooth()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 7l6-5 6 5v5l-6 5-6-5z"/><path d="M6 17l6 5 6-5v-5l-6 5-6-5z"/></svg>
+          CONNECT HC-05 / HC-06
+        </button>
+        <button class="btn-secondary" id="btnSim" onclick="toggleSimulation()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10,8 16,12 10,16"/></svg>
+          SIMULATION MODE
+        </button>
+        <div class="bt-log" id="btLog">
+          <div class="bt-log-entry">[ SYSTEM ] Ready. Tap Connect to pair HC-05/06.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-tag">03</span>
+        <span class="card-title">SYSTEM HEALTH</span>
+      </div>
+      <div class="card-body">
+        <div class="health-row">
+          <div class="health-label-row"><span class="health-label">BATTERY</span><span class="health-val" id="battVal">78%</span></div>
+          <div class="health-bar-bg"><div class="health-bar-fill" id="battBar" style="width:78%"></div></div>
+        </div>
+        <div class="health-row">
+          <div class="health-label-row"><span class="health-label">BT SIGNAL</span><span class="health-val" id="sigVal">--</span></div>
+          <div class="health-bar-bg"><div class="health-bar-fill" id="sigBar" style="width:0%"></div></div>
+        </div>
+        <div class="health-row">
+          <div class="health-label-row"><span class="health-label">UPTIME</span><span class="health-val" id="uptime">00:00:00</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LCD Preview -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-tag">02</span>
+        <span class="card-title">LCD DISPLAY PREVIEW</span>
+      </div>
+      <div class="card-body">
+        <div class="lcd-outer">
+          <div class="lcd-bezel">
+            <div class="lcd-screen">
+              <div class="lcd-line"><span class="lcd-key">TEMP :</span><span class="lcd-val" id="lcdTemp">--°C</span></div>
+              <div class="lcd-line"><span class="lcd-key">HUM  :</span><span class="lcd-val" id="lcdHum">--%</span></div>
+              <div class="lcd-line"><span class="lcd-key">DIST :</span><span class="lcd-val" id="lcdDist">--cm</span></div>
+              <div class="lcd-line"><span class="lcd-key">METAL:</span><span class="lcd-val metal-no" id="lcdMetal">---</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── TAB: RADAR ── -->
+  <div class="tab-view" id="tabRadar">
+
+    <div class="radar-wrap">
+      <canvas id="radarCanvas" width="320" height="320"></canvas>
+      <div class="radar-legend">
+        <div class="rl-item"><span class="rl-dot obj"></span> OBSTACLE</div>
+        <div class="rl-item"><span class="rl-dot metal"></span> METAL ZONE</div>
+        <div class="rl-item"><span class="rl-dot clear"></span> CLEAR</div>
+      </div>
+      <div class="radar-stats">
+        <div class="rs-item"><div class="rs-val" id="radarDist">--</div><div class="rs-label">RANGE cm</div></div>
+        <div class="rs-item"><div class="rs-val" id="radarAngle">0°</div><div class="rs-label">SWEEP</div></div>
+        <div class="rs-item"><div class="rs-val" id="radarTargets">0</div><div class="rs-label">TARGETS</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── TAB: SENSORS ── -->
+  <div class="tab-view" id="tabSensors">
+
+    <div class="scard dist" id="scardDist">
+      <div class="scard-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 12H2M22 12l-4-4M22 12l-4 4"/><circle cx="5" cy="12" r="2"/></svg>
+      </div>
+      <div class="scard-data">
+        <div class="scard-val"><span id="distVal">--</span><span class="scard-unit">cm</span></div>
+        <div class="scard-label">ULTRASONIC DISTANCE</div>
+        <div class="scard-status ok" id="distStatus">NOMINAL</div>
+      </div>
+      <div class="sparkline-wrap"><canvas id="sparkDist" width="72" height="36"></canvas></div>
+    </div>
+
+    <div class="scard temp" id="scardTemp">
+      <div class="scard-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+      </div>
+      <div class="scard-data">
+        <div class="scard-val"><span id="tempVal">--</span><span class="scard-unit">°C</span></div>
+        <div class="scard-label">TEMPERATURE</div>
+        <div class="scard-status ok" id="tempStatus">NOMINAL</div>
+      </div>
+      <div class="sparkline-wrap"><canvas id="sparkTemp" width="72" height="36"></canvas></div>
+    </div>
+
+    <div class="scard hum" id="scardHum">
+      <div class="scard-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+      </div>
+      <div class="scard-data">
+        <div class="scard-val"><span id="humVal">--</span><span class="scard-unit">%</span></div>
+        <div class="scard-label">HUMIDITY</div>
+        <div class="scard-status ok" id="humStatus">NOMINAL</div>
+      </div>
+      <div class="sparkline-wrap"><canvas id="sparkHum" width="72" height="36"></canvas></div>
+    </div>
+
+    <div class="scard metal" id="scardMetal">
+      <div class="scard-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </div>
+      <div class="scard-data">
+        <div class="scard-val" id="metalVal" style="font-size:15px">-- STANDBY</div>
+        <div class="scard-label">METAL DETECTOR</div>
+        <div class="scard-status" id="metalStatusLabel">STANDBY</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── TAB: ALERTS ── -->
+  <div class="tab-view" id="tabAlerts">
+
+    <div class="alert-actions" style="margin-bottom:10px">
+      <button class="btn-sm danger" onclick="testAlert()">TEST ALERT</button>
+      <button class="btn-sm" onclick="clearAlerts()">CLEAR ALL</button>
+    </div>
+    <div class="sound-toggle">
+      <label class="toggle"><input type="checkbox" id="soundToggle" checked/><span class="toggle-slider"></span></label>
+      <span class="sound-label">SOUND ALERTS</span>
+    </div>
+
+    <div id="alertZone" style="margin-top:10px">
+      <div class="alert-empty">
+        <div class="alert-empty-icon">◎</div>
+        <div class="alert-empty-text">NO ACTIVE ALERTS<br><span style="opacity:0.5;font-size:9px">Monitoring all sensors</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── TAB: LOG ── -->
+  <div class="tab-view" id="tabLog">
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span class="section-title" style="margin:0;border:none">ACTIVITY LOG</span>
+      <button class="btn-sm" style="width:auto;padding:6px 12px" onclick="clearLog()">CLEAR</button>
+    </div>
+    <div id="logContainer">
+      <div class="log-entry">
+        <span class="log-time" id="initLogTime">--:--:--</span>
+        <span class="log-tag">SYS</span>
+        <span class="log-msg">Command center initialized. Awaiting rover connection.</span>
+      </div>
+    </div>
+
+  </div>
+
+</div><!-- /content -->
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="nav-item active" id="navConnect" onclick="switchTab('Connect')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 7l6-5 6 5v5l-6 5-6-5z"/><path d="M6 17l6 5 6-5v-5l-6 5-6-5z"/></svg>
+    CONNECT
+  </button>
+  <button class="nav-item" id="navRadar" onclick="switchTab('Radar')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/><line x1="12" y1="3" x2="12" y2="1"/><line x1="12" y1="23" x2="12" y2="21"/><line x1="3" y1="12" x2="1" y2="12"/><line x1="23" y1="12" x2="21" y2="12"/></svg>
+    RADAR
+  </button>
+  <button class="nav-item" id="navSensors" onclick="switchTab('Sensors')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 12H2"/><path d="M12 2v20"/><circle cx="12" cy="12" r="4"/></svg>
+    SENSORS
+  </button>
+  <button class="nav-item" id="navAlerts" onclick="switchTab('Alerts')">
+    <div class="nav-badge" id="alertBadge">0</div>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    ALERTS
+  </button>
+  <button class="nav-item" id="navLog" onclick="switchTab('Log')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+    LOG
+  </button>
+</nav>
+
+<!-- TOASTS -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+'use strict';
+
+/* ── STATE ── */
+const S = {
+  bt: { device: null, char: null, connected: false, buffer: '' },
+  sim: { running: false, interval: null },
+  sensors: { dist: null, temp: null, hum: null, metal: false },
+  radar: { angle: 0, objects: [], dir: 1 },
+  history: { dist: [], temp: [], hum: [] },
+  alerts: [],
+  uptime: 0, uptimeIv: null, audioCtx: null,
+  activeTab: 'Connect',
+};
+const HIST_MAX = 60;
+const THRESH = { dist: 20, temp: 38, hum: 90 };
+
+/* ── INIT ── */
+document.addEventListener('DOMContentLoaded', () => {
+  updateClock(); setInterval(updateClock, 1000);
+  document.getElementById('initLogTime').textContent = timeStr();
+  initRadar();
+});
+
+/* ── TABS ── */
+function switchTab(name) {
+  S.activeTab = name;
+  document.querySelectorAll('.tab-view').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('tab' + name).classList.add('active');
+  document.getElementById('nav' + name).classList.add('active');
+  if (name === 'Radar') { cancelAnimationFrame(radarAF); initRadar(); }
+}
+
+/* ── CLOCK ── */
+function updateClock() {
+  const t = timeStr();
+  document.getElementById('hClock').textContent = t;
+}
+function timeStr() { return new Date().toTimeString().split(' ')[0]; }
+
+/* ── BLUETOOTH ── */
+async function connectBluetooth() {
+  if (!navigator.bluetooth) {
+    btLog('Web Bluetooth not supported. Use Chrome on Android.', 'error');
+    showToast('Need Chrome on Android for Bluetooth', 'warn');
+    return;
+  }
+  const btn = document.getElementById('btnConnect');
+  btn.disabled = true; btn.textContent = 'SCANNING...';
+  btLog('Scanning for rover device...');
+  try {
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [
+        { name: 'HC-05' }, { name: 'HC-06' },
+        { namePrefix: 'HC' }, { namePrefix: 'ROVER' }, { namePrefix: 'BT' }
+      ],
+      optionalServices: [
+        '0000ffe0-0000-1000-8000-00805f9b34fb',
+        '00001101-0000-1000-8000-00805f9b34fb'
+      ]
+    });
+    S.bt.device = device;
+    btLog(`Found: ${device.name || 'Unknown'}`, 'success');
+    device.addEventListener('gattserverdisconnected', onBTDisconnected);
+    btLog('Connecting to GATT...');
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService('0000ffe0-0000-1000-8000-00805f9b34fb');
+    const char = await service.getCharacteristic('0000ffe1-0000-1000-8000-00805f9b34fb');
+    S.bt.char = char;
+    await char.startNotifications();
+    char.addEventListener('characteristicvaluechanged', onBTData);
+    onBTConnected(device.name || 'HC-Module');
+  } catch(e) {
+    btLog(`Failed: ${e.message}`, 'error');
+    showToast('Connection failed — try Simulation Mode', 'danger');
+    btn.disabled = false;
+    btn.textContent = 'CONNECT HC-05 / HC-06';
+  }
+}
+
+function onBTConnected(name) {
+  S.bt.connected = true;
+  setOnlineStatus(true, name);
+  btLog(`Connected to ${name} ✓`, 'success');
+  addLog('bt', `Connected to ${name}`, 'BT');
+  showToast(`Connected: ${name}`, 'success');
+  startUptime();
+  const btn = document.getElementById('btnConnect');
+  btn.disabled = false;
+  btn.textContent = 'DISCONNECT';
+  btn.onclick = disconnectBT;
+  btn.classList.add('danger');
+}
+
+function onBTDisconnected() {
+  S.bt.connected = false;
+  setOnlineStatus(false);
+  btLog('Disconnected.', 'error');
+  addLog('bt', 'Bluetooth disconnected', 'BT');
+  showToast('Rover disconnected', 'danger');
+  const btn = document.getElementById('btnConnect');
+  btn.textContent = 'RECONNECT HC-05 / HC-06';
+  btn.onclick = connectBluetooth;
+  btn.classList.remove('danger');
+}
+
+async function disconnectBT() {
+  if (S.bt.device?.gatt?.connected) await S.bt.device.gatt.disconnect();
+}
+
+function onBTData(e) {
+  const chunk = new TextDecoder().decode(e.target.value);
+  S.bt.buffer += chunk;
+  // Process complete lines
+  const lines = S.bt.buffer.split('\n');
+  S.bt.buffer = lines.pop(); // keep incomplete last fragment
+  lines.forEach(l => { if (l.trim()) parseData(l); });
+}
+
+function parseData(raw) {
+  try {
+    const d = {};
+    raw.trim().split(',').forEach(p => {
+      const [k, v] = p.split(':');
+      if (k && v !== undefined) d[k.trim().toUpperCase()] = v.trim();
+    });
+    if (d.DIST  !== undefined) updateDist(parseFloat(d.DIST));
+    if (d.TEMP  !== undefined) updateTemp(parseFloat(d.TEMP));
+    if (d.HUM   !== undefined) updateHum(parseFloat(d.HUM));
+    if (d.METAL !== undefined) updateMetal(d.METAL === '1');
+  } catch(e) {}
+}
+
+/* ── STATUS UI ── */
+function setOnlineStatus(online, name='') {
+  const dot = document.getElementById('hdrDot');
+  const csbDot = document.getElementById('csbDot');
+  dot.classList.toggle('online', online);
+  csbDot.classList.toggle('online', online);
+  document.getElementById('hdrStatus').textContent = online ? `ONLINE · ${name}` : 'OFFLINE · v2.4.1';
+  document.getElementById('csbLabel').textContent = online ? 'ROVER ONLINE' : 'ROVER OFFLINE';
+  document.getElementById('csbSub').textContent = online ? `Connected: ${name}` : 'No device connected';
+  document.getElementById('sigBar').style.width = online ? '82%' : '0%';
+  document.getElementById('sigVal').textContent = online ? '-62dB' : '--';
+}
+
+/* ── SIMULATION ── */
+function toggleSimulation() {
+  S.sim.running ? stopSim() : startSim();
+}
+function startSim() {
+  S.sim.running = true;
+  setOnlineStatus(true, 'SIMULATION');
+  addLog('sys', 'Simulation mode started.', 'SYS');
+  showToast('Simulation ON', 'success');
+  document.getElementById('btnSim').classList.add('sim-active');
+  document.getElementById('btnSim').textContent = '⏹ STOP SIMULATION';
+  startUptime();
+  let tick = 0;
+  S.sim.interval = setInterval(() => {
+    tick++;
+    updateDist(Math.max(5, Math.round(80 - 60 * Math.abs(Math.sin(tick * 0.07 + Math.random() * 0.3)))));
+    updateTemp(+(28 + 8 * Math.sin(tick * 0.03) + (Math.random() - 0.5) * 2).toFixed(1));
+    updateHum(+(60 + 20 * Math.cos(tick * 0.04) + (Math.random() - 0.5) * 3).toFixed(1));
+    updateMetal(Math.random() < (tick % 40 < 8 ? 0.7 : 0.05));
+  }, 1000);
+}
+function stopSim() {
+  S.sim.running = false;
+  clearInterval(S.sim.interval);
+  setOnlineStatus(false);
+  addLog('sys', 'Simulation stopped.', 'SYS');
+  document.getElementById('btnSim').classList.remove('sim-active');
+  document.getElementById('btnSim').innerHTML =
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10,8 16,12 10,16"/></svg> SIMULATION MODE';
+}
+
+/* ── BT LOG ── */
+function btLog(msg, type='') {
+  const el = document.getElementById('btLog');
+  const d = document.createElement('div');
+  d.className = `bt-log-entry ${type}`;
+  d.textContent = `[ ${timeStr()} ] ${msg}`;
+  el.appendChild(d);
+  while (el.children.length > 30) el.removeChild(el.firstChild);
+  el.scrollTop = el.scrollHeight;
+}
+
+/* ── SENSOR UPDATES ── */
+function updateDist(v) {
+  S.sensors.dist = v;
+  document.getElementById('distVal').textContent = v;
+  document.getElementById('lcdDist').textContent = v + 'cm';
+  document.getElementById('radarDist').textContent = v;
+  pushHist('dist', v);
+  drawSparkline('sparkDist', S.history.dist, '#ffb300');
+  S.radar.objects.push({ angle: S.radar.angle, dist: v, metal: S.sensors.metal, ts: Date.now() });
+  if (S.radar.objects.length > 80) S.radar.objects.shift();
+  const ds = document.getElementById('distStatus');
+  const sc = document.getElementById('scardDist');
+  if (v < THRESH.dist) {
+    ds.textContent = '⚠ TOO CLOSE'; ds.className = 'scard-status danger';
+    sc.classList.add('alert-active');
+    triggerAlert('danger', `⚠ OBJECT TOO CLOSE: ${v}cm`, 'dist');
+  } else if (v < 40) {
+    ds.textContent = 'CAUTION'; ds.className = 'scard-status warn'; sc.classList.remove('alert-active');
+  } else {
+    ds.textContent = 'NOMINAL'; ds.className = 'scard-status ok'; sc.classList.remove('alert-active');
+  }
+}
+
+function updateTemp(v) {
+  S.sensors.temp = v;
+  document.getElementById('tempVal').textContent = v;
+  document.getElementById('lcdTemp').textContent = v + '°C';
+  pushHist('temp', v);
+  drawSparkline('sparkTemp', S.history.temp, '#ff8844');
+  const ts = document.getElementById('tempStatus');
+  const sc = document.getElementById('scardTemp');
+  if (v >= THRESH.temp) {
+    ts.textContent = '🌡 HIGH TEMP'; ts.className = 'scard-status danger';
+    sc.classList.add('alert-active');
+    triggerAlert('warn', `🌡 HIGH TEMPERATURE: ${v}°C`, 'temp');
+    addLog('temp', `High temp: ${v}°C`, 'TEMP');
+  } else {
+    ts.textContent = v > 33 ? 'ELEVATED' : 'NOMINAL';
+    ts.className = `scard-status ${v > 33 ? 'warn' : 'ok'}`;
+    sc.classList.remove('alert-active');
+  }
+}
+
+function updateHum(v) {
+  S.sensors.hum = v;
+  document.getElementById('humVal').textContent = v;
+  document.getElementById('lcdHum').textContent = v + '%';
+  pushHist('hum', v);
+  drawSparkline('sparkHum', S.history.hum, '#00aaff');
+  const hs = document.getElementById('humStatus');
+  hs.textContent = v > 80 ? 'HIGH' : 'NOMINAL';
+  hs.className = `scard-status ${v > 80 ? 'warn' : 'ok'}`;
+}
+
+function updateMetal(detected) {
+  const was = S.sensors.metal;
+  S.sensors.metal = detected;
+  const lcd = document.getElementById('lcdMetal');
+  const val = document.getElementById('metalVal');
+  const lbl = document.getElementById('metalStatusLabel');
+  const sc  = document.getElementById('scardMetal');
+  const ov  = document.getElementById('metalOverlay');
+  if (detected) {
+    lcd.textContent = 'YES ⚠'; lcd.className = 'lcd-val metal-yes';
+    val.textContent = '⚠ METAL DETECTED'; val.classList.add('metal-detected');
+    lbl.textContent = '⚡ LANDMINE RISK'; lbl.className = 'scard-status danger';
+    sc.classList.add('alert-active'); ov.classList.add('active');
+    if (!was) {
+      triggerAlert('danger', '💥 METAL DETECTED UNDER SURFACE!', 'metal');
+      addLog('metal', 'Metal detected — possible landmine!', 'METAL');
+      playAlarm('metal');
+    }
+  } else {
+    lcd.textContent = 'NO'; lcd.className = 'lcd-val metal-no';
+    val.textContent = '✓ CLEAR'; val.classList.remove('metal-detected');
+    lbl.textContent = 'AREA CLEAR'; lbl.className = 'scard-status ok';
+    sc.classList.remove('alert-active'); ov.classList.remove('active');
+  }
+}
+
+function pushHist(k, v) {
+  S.history[k].push(v);
+  if (S.history[k].length > HIST_MAX) S.history[k].shift();
+}
+
+/* ── SPARKLINES ── */
+function drawSparkline(id, data, color) {
+  const c = document.getElementById(id);
+  if (!c || data.length < 2) return;
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  ctx.clearRect(0, 0, W, H);
+  const recent = data.slice(-20);
+  const min = Math.min(...recent), max = Math.max(...recent);
+  const range = max - min || 1;
+  ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+  ctx.shadowColor = color; ctx.shadowBlur = 4;
+  ctx.beginPath();
+  recent.forEach((v, i) => {
+    const x = (i / (recent.length - 1)) * W;
+    const y = H - ((v - min) / range) * (H - 4) - 2;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke(); ctx.shadowBlur = 0;
+}
+
+/* ── RADAR ── */
+let radarAF;
+function initRadar() {
+  const c = document.getElementById('radarCanvas');
+  const parent = c.parentElement;
+  const size = Math.min(parent.offsetWidth - 24, 360);
+  c.width = c.height = size;
+  animateRadar();
+}
+function animateRadar() {
+  drawRadar();
+  S.radar.angle += 1.2;
+  if (S.radar.angle >= 360) S.radar.angle = 0;
+  document.getElementById('radarAngle').textContent = Math.round(S.radar.angle) + '°';
+  radarAF = requestAnimationFrame(animateRadar);
+}
+function drawRadar() {
+  const c = document.getElementById('radarCanvas');
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height, cx = W/2, cy = H/2, R = W/2 - 8;
+  const sweepRad = S.radar.angle * Math.PI / 180;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#020a04'; ctx.fillRect(0,0,W,H);
+  // rings
+  [0.25,0.5,0.75,1].forEach(f => {
+    ctx.beginPath(); ctx.arc(cx,cy,R*f,0,Math.PI*2);
+    ctx.strokeStyle = f===1?'#1a5a28':'#0a2a12'; ctx.lineWidth = f===1?1.5:1; ctx.stroke();
+    if(f<1){ ctx.fillStyle='#2a5a35'; ctx.font=`${W>300?9:7}px Share Tech Mono,monospace`;
+      ctx.textAlign='left'; ctx.fillText(`${Math.round(f*200)}`,cx+R*f+2,cy-3); }
+  });
+  // cross
+  ctx.strokeStyle='#0a2a12'; ctx.lineWidth=1;
+  [0,45,90,135].forEach(deg => {
+    const a=deg*Math.PI/180; ctx.beginPath();
+    ctx.moveTo(cx+Math.cos(a)*R,cy+Math.sin(a)*R);
+    ctx.lineTo(cx-Math.cos(a)*R,cy-Math.sin(a)*R); ctx.stroke();
+  });
+  // compass
+  ctx.fillStyle='#1a5a28'; ctx.font=`${W>300?10:8}px Share Tech Mono,monospace`; ctx.textAlign='center';
+  ctx.fillText('N',cx,cy-R+12); ctx.fillText('S',cx,cy+R-4);
+  ctx.textAlign='left'; ctx.fillText('E',cx+R-10,cy+4);
+  ctx.textAlign='right'; ctx.fillText('W',cx-R+10,cy+4);
+  // sweep trail
+  for(let i=0;i<40;i++){
+    const a=sweepRad-(i*Math.PI/180);
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,R-2,a-Math.PI/180,a); ctx.closePath();
+    ctx.fillStyle=`rgba(0,255,136,${0.15*(1-i/40)})`; ctx.fill();
+  }
+  // sweep line
+  ctx.save(); ctx.translate(cx,cy); ctx.rotate(sweepRad);
+  const g=ctx.createLinearGradient(0,0,R,0);
+  g.addColorStop(0,'rgba(0,255,136,0)'); g.addColorStop(0.7,'rgba(0,255,136,0.4)'); g.addColorStop(1,'rgba(0,255,136,0.9)');
+  ctx.strokeStyle=g; ctx.lineWidth=2; ctx.shadowColor='#00ff88'; ctx.shadowBlur=8;
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(R,0); ctx.stroke(); ctx.restore();
+  // objects
+  const now=Date.now(); let tcount=0;
+  S.radar.objects.forEach(o=>{
+    const age=(now-o.ts)/1000; if(age>8) return;
+    const op=Math.max(0,1-age/8);
+    const orad=o.angle*Math.PI/180, distFrac=Math.min(o.dist/200,0.95);
+    const px=cx+Math.cos(orad)*R*distFrac, py=cy+Math.sin(orad)*R*distFrac;
+    const dc=o.metal?'255,51,51':'255,179,0';
+    ctx.beginPath(); ctx.arc(px,py,o.metal?6:4,0,Math.PI*2);
+    ctx.fillStyle=`rgba(${dc},${op})`; ctx.shadowColor=`rgb(${dc})`; ctx.shadowBlur=o.metal?12:6;
+    ctx.fill(); ctx.shadowBlur=0; tcount++;
+  });
+  document.getElementById('radarTargets').textContent=tcount;
+  // center
+  ctx.beginPath(); ctx.arc(cx,cy,4,0,Math.PI*2); ctx.fillStyle='#00ff88';
+  ctx.shadowColor='#00ff88'; ctx.shadowBlur=8; ctx.fill(); ctx.shadowBlur=0;
+}
+
+/* ── ALERTS ── */
+const cooldown = {};
+function triggerAlert(type, msg, key) {
+  const now = Date.now();
+  if (cooldown[key] && now - cooldown[key] < 5000) return;
+  cooldown[key] = now;
+  const zone = document.getElementById('alertZone');
+  zone.querySelector('.alert-empty')?.remove();
+  const item = document.createElement('div');
+  item.className = `alert-item ${type==='warn'?'warn':''}`;
+  item.innerHTML = `<span class="alert-icon">${type==='danger'?'🔴':'⚠️'}</span><div class="alert-body"><div class="alert-msg">${msg}</div><div class="alert-time">${timeStr()}</div></div>`;
+  zone.appendChild(item);
+  zone.scrollTop = zone.scrollHeight;
+  S.alerts.push({type,msg});
+  const badge = document.getElementById('alertBadge');
+  badge.textContent = S.alerts.length; badge.classList.add('visible');
+  showToast(msg, type);
+  if (type==='danger' && document.getElementById('soundToggle').checked) playAlarm(key);
+}
+function clearAlerts() {
+  S.alerts=[];
+  document.getElementById('alertZone').innerHTML='<div class="alert-empty"><div class="alert-empty-icon">◎</div><div class="alert-empty-text">NO ACTIVE ALERTS<br><span style="opacity:0.5;font-size:9px">Monitoring all sensors</span></div></div>';
+  const b=document.getElementById('alertBadge'); b.textContent='0'; b.classList.remove('visible');
+}
+function testAlert() {
+  triggerAlert('danger','🔴 TEST: Metal detected under surface!','test_'+Date.now());
+  addLog('metal','Test alert triggered.','METAL');
+}
+
+/* ── LOG ── */
+function addLog(type, msg, tag) {
+  const c = document.getElementById('logContainer');
+  const d = document.createElement('div'); d.className = 'log-entry';
+  d.innerHTML = `<span class="log-time">${timeStr()}</span><span class="log-tag ${type}">${tag}</span><span class="log-msg">${msg}</span>`;
+  c.appendChild(d);
+  while (c.children.length > 60) c.removeChild(c.firstChild);
+  c.scrollTop = c.scrollHeight;
+}
+function clearLog() {
+  document.getElementById('logContainer').innerHTML='';
+  addLog('sys','Log cleared.','SYS');
+}
+
+/* ── TOAST ── */
+function showToast(msg, type='success') {
+  const c = document.getElementById('toastWrap');
+  const t = document.createElement('div'); t.className = `toast ${type}`;
+  t.textContent = msg; c.appendChild(t);
+  setTimeout(()=>{ t.style.animation='toastOut 0.3s ease forwards'; setTimeout(()=>t.remove(),300); },3000);
+}
+
+/* ── AUDIO ── */
+function getAudio() {
+  if (!S.audioCtx) try { S.audioCtx = new (window.AudioContext||window.webkitAudioContext)(); } catch(e) {}
+  return S.audioCtx;
+}
+function playAlarm(type) {
+  if (!document.getElementById('soundToggle').checked) return;
+  const ctx = getAudio(); if (!ctx) return;
+  if (type==='metal') {
+    [0,0.15,0.3,0.45].forEach(off => {
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value=880; o.type='square';
+      g.gain.setValueAtTime(0.15,ctx.currentTime+off);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+off+0.12);
+      o.start(ctx.currentTime+off); o.stop(ctx.currentTime+off+0.12);
+    });
+  } else {
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value=440; o.type='sine';
+    g.gain.setValueAtTime(0.1,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.3);
+    o.start(ctx.currentTime); o.stop(ctx.currentTime+0.3);
+  }
+}
+
+/* ── UPTIME ── */
+function startUptime() {
+  S.uptime=0; clearInterval(S.uptimeIv);
+  S.uptimeIv = setInterval(()=>{
+    S.uptime++;
+    const h=String(Math.floor(S.uptime/3600)).padStart(2,'0');
+    const m=String(Math.floor((S.uptime%3600)/60)).padStart(2,'0');
+    const s=String(S.uptime%60).padStart(2,'0');
+    document.getElementById('uptime').textContent=`${h}:${m}:${s}`;
+    if(S.sim.running && S.uptime%10===0){
+      const curr=parseInt(document.getElementById('battVal').textContent)||78;
+      const next=Math.max(20,curr-1);
+      document.getElementById('battBar').style.width=next+'%';
+      document.getElementById('battVal').textContent=next+'%';
+      const bar=document.getElementById('battBar');
+      bar.className='health-bar-fill'+(next<30?' crit':next<50?' warn':'');
+    }
+  },1000);
+}
+
+window.addEventListener('resize',()=>{ cancelAnimationFrame(radarAF); initRadar(); });
+
+// Expose globals
+window.connectBluetooth=connectBluetooth;
+window.toggleSimulation=toggleSimulation;
+window.testAlert=testAlert;
+window.clearAlerts=clearAlerts;
+window.clearLog=clearLog;
+window.switchTab=switchTab;
+</script>
+</body>
+</html>
